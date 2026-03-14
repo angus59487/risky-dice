@@ -4,13 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    <title>G.I 道具：風險骰子 (全球共業版)</title>
-    <meta name="description" content="獵人貪婪之島道具實體化！挑戰 1/20 的大凶機率，全人類累積厄運中，誰會是下一個終結者？">
-    <meta name="keywords" content="風險骰子, 獵人, 貪婪之島, 網頁遊戲, 機率遊戲">
+    <link rel="icon" href="favicon.png" type="image/png">
+
+    <title>G.I 道具：風險骰子 (正式連線版)</title>
     
-    <meta property="og:title" content="G.I 道具：風險骰子 - 你敢挑戰嗎？">
-    <meta property="og:description" content="目前全網厄運累積中，大吉雖然多，但大凶隨時降臨...">
-    <meta property="og:type" content="website">
+    <meta name="description" content="獵人貪婪之島道具實體化！挑戰 1/20 的大凶機率，全人類累積厄運中。">
+    <meta property="og:title" content="G.I 道具：風險骰子">
+    <meta property="og:description" content="目前全網厄運累積中，誰會是下一個終結者？">
     <meta name="theme-color" content="#0d0d0d">
 
     <style>
@@ -30,7 +30,12 @@
         @keyframes shake-screen { 0% { transform: translate(3px, 3px); } 50% { transform: translate(-3px, -3px); } 100% { transform: translate(0px, 4px); } }
     </style>
 </head>
-<body id="main-body">
+<body>
+
+    <audio id="snd-roll" src="roll.mp3"></audio>
+    <audio id="snd-lucky" src="lucky.mp3"></audio>
+    <audio id="snd-glitch" src="glitch.mp3"></audio>
+    <audio id="snd-bad" src="bad.mp3"></audio>
 
     <div id="total-box">
         <p class="label">累積「厄運」值</p>
@@ -77,15 +82,21 @@
         let isRolling = false;
         const diceBox = document.getElementById('dice-box');
         const btn = document.getElementById('use-btn');
-        const body = document.getElementById('main-body');
+        const body = document.querySelector('body');
+
+        function playSnd(id) {
+            const el = document.getElementById(id);
+            if(el) { el.currentTime = 0; el.play().catch(e => console.log("等待點擊觸發音效")); }
+        }
 
         function useDice() {
             if (isRolling) return;
             isRolling = true;
             btn.disabled = true;
-            body.style.backgroundColor = "#0d0d0d";
             diceBox.classList.remove('glitch-red');
             diceBox.style.borderColor = "#ffd700";
+            
+            playSnd('snd-roll');
 
             let rollInterval = setInterval(() => {
                 const isRed = Math.random() < 0.2;
@@ -103,10 +114,12 @@
                     diceBox.innerHTML = '<span class="text-ji">大吉</span>';
                     if (finalResult === "reverseBad") {
                         setTimeout(() => {
+                            playSnd('snd-glitch');
                             diceBox.classList.add('glitch-red'); 
                             setTimeout(() => triggerBadEnd(), 800); 
                         }, 600); 
                     } else {
+                        playSnd('snd-lucky');
                         window.updateCloud('add');
                         isRolling = false;
                         btn.disabled = false;
@@ -118,15 +131,16 @@
         function triggerBadEnd() {
             const finalDoom = window.currentDoom;
             window.updateCloud('reset');
+            playSnd('snd-bad');
             diceBox.innerHTML = '<span class="text-xiong">大凶</span>';
             diceBox.style.borderColor = "#ff0000";
-            body.classList.add('shake-all');
-            body.style.backgroundColor = "#000";
+            document.body.classList.add('shake-all');
+            document.body.style.backgroundColor = "#000";
 
             setTimeout(() => {
                 alert(`☠️ 命運終結！\n你領取了 ${finalDoom} 份大吉等級的厄運。`);
-                body.classList.remove('shake-all');
-                body.style.backgroundColor = "#0d0d0d";
+                document.body.classList.remove('shake-all');
+                document.body.style.backgroundColor = "#0d0d0d";
                 isRolling = false;
                 btn.disabled = false;
             }, 600);
