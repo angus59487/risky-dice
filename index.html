@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>G.I 道具：風險骰子 (全球共業版)</title>
+    <style>
+        body { 
+            background-color: #0d0d0d; color: white; text-align: center; 
+            font-family: 'Noto Sans TC', sans-serif; height: 100vh; margin: 0; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            overflow: hidden; 
+        }
+        
+        #total-box { margin-bottom: 30px; }
+        .label { color: #444; letter-spacing: 5px; font-size: 14px; margin-bottom: 5px; }
+        #global-counter { font-size: 100px; font-weight: 900; color: #ff0000; text-shadow: 0 0 40px #600; line-height: 0.8; }
+
+        /* 道具感骰子盒子 */
+        #dice-box {
+            width: 220px; height: 220px; background: #1a1a1a; 
+            border: 6px solid #ffd700; border-radius: 20px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 60px; font-weight: bold; margin-bottom: 40px;
+            box-shadow: inset 0 0 30px #000, 0 0 20px rgba(255,215,0,0.2);
+            transition: 0.1s; position: relative;
+        }
+
+        .text-ji { color: #ffd700; text-shadow: 0 0 20px #ffd700; }
+        .text-xiong { color: #ff0000; text-shadow: 0 0 25px #ff0000; font-size: 70px; }
+        
+        /* 命運反轉閃爍特效 */
+        .glitch-red { animation: glitch-anim 0.1s infinite; border-color: #ff0000 !important; }
+        @keyframes glitch-anim {
+            0% { transform: scale(1.1) translate(2px, -2px); filter: brightness(2); }
+            50% { transform: scale(1.05) translate(-2px, 2px); filter: contrast(2); }
+            100% { transform: scale(1.1) translate(0, 0); }
+        }
+
+        /* 道具按鈕 */
+        #use-btn { 
+            padding: 20px 40px; font-size: 24px; cursor: pointer; 
+            background: linear-gradient(135deg, #ffd700, #b8860b); 
+            color: #000; border: none; border-radius: 10px;
+            font-weight: 900; transition: 0.3s;
+            box-shadow: 0 10px 0 #5e4a00, 0 15px 20px rgba(0,0,0,0.5);
+            -webkit-tap-highlight-color: transparent;
+        }
+        #use-btn:active { transform: translateY(4px); box-shadow: 0 6px 0 #5e4a00; }
+        #use-btn:disabled { background: #333; color: #666; box-shadow: none; transform: translateY(8px); }
+
+        .shake-all { animation: shake-screen 0.05s infinite; }
+        @keyframes shake-screen {
+            0% { transform: translate(3px, 3px); }
+            50% { transform: translate(-3px, -3px); }
+            100% { transform: translate(0px, 4px); }
+        }
+    </style>
+</head>
+<body id="main-body">
+
+    <div id="total-box">
+        <p class="label">累積「厄運」值</p>
+        <div id="global-counter">--</div>
+    </div>
+
+    <div id="dice-box">?</div>
+    
+    <button id="use-btn" onclick="useDice()" disabled>連線中...</button>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAZBQWLAYJsgq4CltF2LTXflukLv6DLAiA",
+            authDomain: "gi-risky-dice.firebaseapp.com",
+            projectId: "gi-risky-dice",
+            storageBucket: "gi-risky-dice.firebasestorage.app",
+            messagingSenderId: "464525134732",
+            appId: "1:464525134732:web:948f470342ddca6415e4a9"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const doomRef = ref(db, 'doomCount');
+
+        // 同步雲端數字
+        onValue(doomRef, (snapshot) => {
+            window.currentDoom = snapshot.val() || 0;
+            document.getElementById('global-counter').innerText = window.currentDoom;
+            document.getElementById('use-btn').disabled = false;
+            document.getElementById('use-btn').innerText = '使用「風險骰子」';
+        });
+
+        // 雲端更新函數
+        window.updateCloud = function(type) {
+            runTransaction(doomRef, (currentValue) => {
+                if (type === 'add') return (currentValue || 0) + 1;
+                if (type === 'reset') return 0;
+                return currentValue;
+            });
+        };
+    </script>
+
+    <script>
+        let isRolling = false;
+        const diceBox = document.getElementById('dice-box');
+        const btn = document.getElementById('use-btn');
+        const body = document.getElementById('main-body');
+
+        function useDice() {
+            if (isRolling) return;
+            isRolling = true;
+            btn.disabled = true;
+            
+            body.style.backgroundColor = "#0d0d0d";
+            diceBox.classList.remove('glitch-red');
+            diceBox.style.borderColor = "#ffd700";
+
+            // 1. 快速擲骰動畫
+            let rollInterval = setInterval(() => {
+                const isRed = Math.random() < 0.2;
+                diceBox.innerHTML = isRed 
+                    ? '<span class="text-xiong" style="font-size:40px; opacity:0.3;">大凶</span>' 
+                    : '<span class="text-ji" style="font-size:40px; opacity:0.3;">大吉</span>';
+                diceBox.style.transform = `scale(${0.95 + Math.random()*0.1})`;
+            }, 60);
+
+            setTimeout(() => {
+                clearInterval(rollInterval);
+                diceBox.style.transform = "scale(1)";
+
+                // --- 5% 總機率大凶 ---
+                const isTotalBad = Math.floor(Math.random() * 20) === 0;
+                let finalResult = "lucky"; 
+
+                if (isTotalBad) {
+                    // 60% 直接死，40% 反轉死
+                    finalResult = Math.random() < 0.6 ? "directBad" : "reverseBad";
+                }
+
+                // 2. 演出邏輯
+                if (finalResult === "directBad") {
+                    triggerBadEnd();
+                } else {
+                    diceBox.innerHTML = '<span class="text-ji">大吉</span>';
+                    
+                    if (finalResult === "reverseBad") {
+                        // 命運反轉：停頓 0.6 秒後閃紅光
+                        setTimeout(() => {
+                            diceBox.classList.add('glitch-red'); 
+                            setTimeout(() => {
+                                triggerBadEnd();
+                            }, 800); 
+                        }, 600); 
+                    } else {
+                        // 真正的大吉，更新雲端
+                        window.updateCloud('add');
+                        isRolling = false;
+                        btn.disabled = false;
+                    }
+                }
+            }, 1500);
+        }
+
+        function triggerBadEnd() {
+            const finalDoom = window.currentDoom;
+            window.updateCloud('reset'); // 雲端歸零
+            
+            diceBox.innerHTML = '<span class="text-xiong">大凶</span>';
+            diceBox.style.borderColor = "#ff0000";
+            body.classList.add('shake-all');
+            body.style.backgroundColor = "#000";
+
+            setTimeout(() => {
+                alert(`☠️ 命運終結！\n你一次接收了全人類累積的 ${finalDoom} 份厄運。`);
+                body.classList.remove('shake-all');
+                body.style.backgroundColor = "#0d0d0d";
+                isRolling = false;
+                btn.disabled = false;
+            }, 600);
+        }
+    </script>
+</body>
+</html>
